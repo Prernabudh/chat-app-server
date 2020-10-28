@@ -4,10 +4,11 @@ const chatroomController = require("../controllers/chatroom");
 
 const auth = require("../middleware/auth");
 
-router.post(
-  "/createChatroom",
-  auth,
-  catchErrors(chatroomController.createChatroom)
-);
+router.get("/", auth, catchErrors(chatroomController.getAllChatrooms))
+// router.post(
+//   "/createChatroom",
+//   auth,
+//   catchErrors(chatroomController.createChatroom)
+// );
 
 module.exports = router;
