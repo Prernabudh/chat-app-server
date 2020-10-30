@@ -14,6 +14,16 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: "Password is required!",
     },
+    username: {
+      type: String,
+      required: "Username is required!",
+    },
+    chatrooms: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Chatroom",
+      },
+    ],
   },
   {
     timestamps: true,

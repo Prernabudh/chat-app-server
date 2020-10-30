@@ -1,31 +1,133 @@
 const mongoose = require("mongoose");
 const Chatroom = require("../models/Chatroom");
+const User = require("../models/User");
 
 exports.createChatroom = async (req, res) => {
-  const { name } = req.body;
-
-  const nameRegex = /^[A-Za-z\s]+$/;
-
-  if (!nameRegex.test(name)) throw "Chatroom name can contain only alphabets.";
-
-  const chatroomExists = await Chatroom.findOne({ name });
-
-  if (chatroomExists) throw "Chatroom with that name already exists!";
-
-  const chatroom = new Chatroom({
-    _id: mongoose.Types.ObjectId(),
-    name: name,
-  });
-
-  await chatroom.save();
-
-  res.json({
-    message: "Chatroom created!",
-  });
+  const userA = req.body.userA;
+  const userB = req.body.userB;
+  Chatroom.find({
+    $or: [
+      { $and: [{ userA: userA }, { userB: userB }] },
+      { $and: [{ userA: userB }, { userB: userA }] },
+    ],
+  })
+    .then((user) => {
+      console.log(user);
+      if (user.length > 0) {
+        res.status(200).json(user);
+      } else {
+        const chatroom = new Chatroom({
+          _id: mongoose.Types.ObjectId(),
+          userA: userA,
+          userB: userB,
+          messages: [],
+        });
+        chatroom
+          .save()
+          .then((data) => {
+            res.status(200).json(data);
+            User.findByIdAndUpdate(userA, { $push: { chatrooms: data._id } })
+              .then((resp) => {
+                res.status(200).json(resp);
+              })
+              .catch((err) => {
+                res.status(500).json(err);
+              });
+            User.findByIdAndUpdate(userB, { $push: { chatrooms: data._id } })
+              .then((resp) => {
+                res.status(200).json(resp);
+              })
+              .catch((err) => {
+                res.status(500).json(err);
+              });
+          })
+          .catch((err) => {
+            console.log(err);
+            res.status(500).json({
+              errors: err,
+            });
+          });
+      }
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(500).json({
+        error: err,
+      });
+    });
 };
 
-exports.getAllChatrooms = async (req, res) =>{
-  const chatrooms = await Chatroom.find({});
+exports.getAllChatrooms = (req, res) => {
+  const userId = req.body.id;
+  Chatroom.find({ $or: [{ userA: userId }, { userB: userId }] })
+    .populate("userA")
+    .populate("userB")
+    .then((data) => {
+      res.status(200).json(data);
+    })
+    .catch((err) => {
+      console.log("here");
+      console.log(err);
+      res.status(500).json({
+        error: err,
+      });
+    });
+};
 
-  res.json(chatrooms);
-}
+exports.sendMessage = (req, res) => {
+  const chatroomId = req.body.chatroomId;
+  const userId = req.body.userId;
+  const message = req.body.message;
+  const chatId = mongoose.Types.ObjectId(chatroomId);
+  const today = new Date();
+  const newMessage = {
+    user: userId,
+    message: message,
+    time: today.getHours() + ":" + today.getMinutes(),
+  };
+  Chatroom.findById(chatId)
+    .then((chatroom) => {
+      const key = (
+        today.getDate() +
+        "-" +
+        today.getMonth() +
+        "-" +
+        today.getFullYear()
+      ).toString();
+      console.log("chatroom message!!!!!!!!");
+      let tempArr = [];
+      if (!chatroom.messages.has(key)) {
+        tempArr = [...tempArr, newMessage];
+        chatroom.set(key, tempArr);
+      } else {
+        tempArr = chatroom.get(key);
+        tempArr = [...tempArr, newMessage];
+        chatroom.set(key, tempArr);
+      }
+      console.log("chatroom===============>" + chatroom);
+      chatroom
+        .save()
+        .then((data) => {
+          res.status(200).json(data);
+        })
+        .catch((err) => {
+          res.status(500).json(err);
+        });
+    })
+    .catch((err) => {
+      res.status(500).json(err);
+    });
+};
+
+exports.getMessages = (req, res) => {
+  const { chatroomId } = req.body;
+  Chatroom.findById(chatroomId)
+    .populate("userA")
+    .populate("userB")
+    .then((data) => {
+      res.status(200).json(data);
+    })
+    .catch((err) => {
+      res.status(500).json(err);
+    });
+};
