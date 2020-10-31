@@ -5,7 +5,7 @@ const User = require("../models/User");
 exports.createChatroom = async (req, res) => {
   const userA = req.body.userA;
   const userB = req.body.userB;
-  Chatroom.find({
+  Chatroom.findOne({
     $or: [
       { $and: [{ userA: userA }, { userB: userB }] },
       { $and: [{ userA: userB }, { userB: userA }] },
@@ -13,14 +13,13 @@ exports.createChatroom = async (req, res) => {
   })
     .then((user) => {
       console.log(user);
-      if (user.length > 0) {
+      if (user) {
         res.status(200).json(user);
       } else {
         const chatroom = new Chatroom({
           _id: mongoose.Types.ObjectId(),
           userA: userA,
           userB: userB,
-          messages: [],
         });
         chatroom
           .save()
@@ -62,12 +61,11 @@ exports.getAllChatrooms = (req, res) => {
   Chatroom.find({ $or: [{ userA: userId }, { userB: userId }] })
     .populate("userA")
     .populate("userB")
+    .populate("lastMessage")
     .then((data) => {
       res.status(200).json(data);
     })
     .catch((err) => {
-      console.log("here");
-      console.log(err);
       res.status(500).json({
         error: err,
       });
@@ -119,13 +117,41 @@ exports.sendMessage = (req, res) => {
     });
 };
 
-exports.getMessages = (req, res) => {
+exports.getMessagesInslots = (req, res) => {
   const { chatroomId } = req.body;
+  const { from, to } = req.body;
   Chatroom.findById(chatroomId)
+    .populate("messages")
     .populate("userA")
     .populate("userB")
     .then((data) => {
-      res.status(200).json(data);
+      res.status(200).json({
+        userA: data.userA,
+        userB: data.userB,
+        messages: data.messages.splice(from, to),
+      });
+    })
+    .catch((err) => {
+      res.status(500).json(err);
+    });
+};
+
+exports.getMessages = (req, res) => {
+  const { chatroomId } = req.body;
+  Chatroom.findById(chatroomId)
+    .populate("messages")
+    .populate("userA")
+    .populate("userB")
+    .then((data) => {
+      res.status(200).json({
+        userA: data.userA,
+        userB: data.userB,
+        end: data.messages.length - 20 < 0 ? 0 : data.messages.length - 20,
+        messages: data.messages.splice(
+          data.messages.length - 20 < 0 ? 0 : data.messages.length - 20,
+          data.messages.length
+        ),
+      });
     })
     .catch((err) => {
       res.status(500).json(err);

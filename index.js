@@ -2,7 +2,7 @@ const http = require("http");
 const app = require("./app");
 const jwt = require("jsonwebtoken");
 const port = process.env.PORT || 3001;
-const Message = require("./models/Chatroom");
+const Message = require("./models/Message");
 const User = require("./models/User");
 const mongoose = require("mongoose");
 const Chatroom = require("./models/Chatroom");
@@ -20,7 +20,7 @@ io.use(async (socket, next) => {
   } catch (err) {}
 });
 
-io.on("connection", async (socket) => {
+io.on("connection", (socket) => {
   socket.on("userOnline", async () => {
     console.log("A user connected " + socket.userId);
     const newUser = await User.findOne({ _id: socket.userId });
@@ -49,13 +49,39 @@ io.on("connection", async (socket) => {
   });
 
   socket.on("joinRoom", ({ chatroomId }) => {
+    const nowTime = new Date();
     socket.join(chatroomId);
     console.log("A user joined chatroom: " + chatroomId);
+    Chatroom.findById(chatroomId).then((response) => {
+      if (response.userA == socket.userId) {
+        response.userAjoin = nowTime;
+        response.userAleave = nowTime;
+      } else {
+        response.userBjoin = nowTime;
+        response.userBleave = nowTime;
+      }
+      response
+        .save()
+        .then((resp) => {})
+        .catch((err) => {});
+    });
   });
 
   socket.on("leaveRoom", ({ chatroomId }) => {
+    const nowTime = new Date();
     socket.leave(chatroomId);
     console.log("A user left chatroom: " + chatroomId);
+    Chatroom.findById(chatroomId).then((response) => {
+      if (response.userA == socket.userId) {
+        response.userAleave = nowTime;
+      } else {
+        response.userBleave = nowTime;
+      }
+      response
+        .save()
+        .then((resp) => {})
+        .catch((err) => {});
+    });
   });
 
   socket.on("chatroomMessage", async ({ chatroomId, message }) => {
@@ -82,7 +108,9 @@ io.on("connection", async (socket) => {
     });
 
     const chatId = mongoose.Types.ObjectId(chatroomId);
-    const newMessage = {
+    const newMessage = new Message({
+      _id: mongoose.Types.ObjectId(),
+      chatroom: chatId,
       userId: socket.userId,
       message: message,
       time:
@@ -99,10 +127,17 @@ io.on("connection", async (socket) => {
         today.getFullYear()
       ).toString(),
       username: user.username,
-    };
-    Chatroom.findByIdAndUpdate(chatId, { $push: { messages: newMessage } })
-      .then((chatroom) => {
-        console.log(chatroom);
+      timestamp: today,
+    });
+    newMessage
+      .save()
+      .then((data) => {
+        Chatroom.findByIdAndUpdate(chatId, {
+          $push: { messages: data._id },
+          lastMessage: data._id,
+        })
+          .then((chatroom) => {})
+          .catch((err) => {});
       })
       .catch((err) => {});
   });
