@@ -24,6 +24,9 @@ const userSchema = new mongoose.Schema(
         ref: "Chatroom",
       },
     ],
+    lastscene: {
+      type: String,
+    },
   },
   {
     timestamps: true,

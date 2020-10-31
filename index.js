@@ -20,8 +20,33 @@ io.use(async (socket, next) => {
   } catch (err) {}
 });
 
-io.on("connection", (socket) => {
-  socket.on("disconnect", () => {});
+io.on("connection", async (socket) => {
+  socket.on("userOnline", async () => {
+    console.log("A user connected " + socket.userId);
+    const newUser = await User.findOne({ _id: socket.userId });
+    newUser.chatrooms.forEach((chatroom) => {
+      io.to(chatroom).emit("userOnline", {
+        userId: socket.userId,
+      });
+    });
+    const updateUser2 = await User.findByIdAndUpdate(socket.userId, {
+      lastscene: "Online",
+    });
+  });
+  socket.on("disconnect", async () => {
+    console.log("A user disconnected " + socket.userId);
+    const disconnectedUser = await User.findOne({ _id: socket.userId });
+    const now = new Date();
+    disconnectedUser.chatrooms.forEach((chatroom) => {
+      io.to(chatroom).emit("userOffline", {
+        userId: socket.userId,
+        time: now.toString(),
+      });
+    });
+    const updateUser = await User.findByIdAndUpdate(socket.userId, {
+      lastscene: now.toString(),
+    });
+  });
 
   socket.on("joinRoom", ({ chatroomId }) => {
     socket.join(chatroomId);
@@ -41,11 +66,16 @@ io.on("connection", (socket) => {
       userId: socket.userId,
       name: user.name,
       username: user.username,
-      time: today.getHours() + ":" + today.getMinutes(),
+      time:
+        (today.getHours() < 10 ? "0" + today.getHours() : today.getHours()) +
+        ":" +
+        (today.getMinutes() < 10
+          ? "0" + today.getMinutes()
+          : today.getMinutes()),
       date: (
-        today.getDate() +
+        (today.getDate() < 10 ? "0" + today.getDate() : today.getDate()) +
         "-" +
-        today.getMonth() +
+        (today.getMonth() < 10 ? "0" + today.getMonth() : today.getMonth()) +
         "-" +
         today.getFullYear()
       ).toString(),
@@ -55,11 +85,16 @@ io.on("connection", (socket) => {
     const newMessage = {
       userId: socket.userId,
       message: message,
-      time: today.getHours() + ":" + today.getMinutes(),
+      time:
+        (today.getHours() < 10 ? "0" + today.getHours() : today.getHours()) +
+        ":" +
+        (today.getMinutes() < 10
+          ? "0" + today.getMinutes()
+          : today.getMinutes()),
       date: (
-        today.getDate() +
+        (today.getDate() < 10 ? "0" + today.getDate() : today.getDate()) +
         "-" +
-        today.getMonth() +
+        (today.getMonth() < 10 ? "0" + today.getMonth() : today.getMonth()) +
         "-" +
         today.getFullYear()
       ).toString(),

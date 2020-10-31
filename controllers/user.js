@@ -83,3 +83,13 @@ exports.login = (req, res, next) => {
       });
     });
 };
+
+exports.getUser = (req, res, next) => {
+  User.findById(req.body._id)
+    .then((resp) => {
+      res.status(200).json(resp);
+    })
+    .catch((err) => {
+      res.status(500).json(err);
+    });
+};
