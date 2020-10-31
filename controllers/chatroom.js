@@ -5,7 +5,7 @@ const User = require("../models/User");
 exports.createChatroom = async (req, res) => {
   const userA = req.body.userA;
   const userB = req.body.userB;
-  Chatroom.find({
+  Chatroom.findOne({
     $or: [
       { $and: [{ userA: userA }, { userB: userB }] },
       { $and: [{ userA: userB }, { userB: userA }] },
@@ -13,7 +13,7 @@ exports.createChatroom = async (req, res) => {
   })
     .then((user) => {
       console.log(user);
-      if (user.length > 0) {
+      if (user) {
         res.status(200).json(user);
       } else {
         const chatroom = new Chatroom({
