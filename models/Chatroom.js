@@ -10,7 +10,28 @@ const chatroomSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
   },
-  messages: [],
+  messages: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Message",
+    },
+  ],
+  userAjoin: {
+    type: String,
+  },
+  userBjoin: {
+    type: String,
+  },
+  userAleave: {
+    type: String,
+  },
+  userBleave: {
+    type: String,
+  },
+  lastMessage: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Message",
+  },
 });
 
 module.exports = mongoose.model("Chatroom", chatroomSchema);
