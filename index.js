@@ -53,17 +53,19 @@ io.on("connection", (socket) => {
     socket.join(chatroomId);
     console.log("A user joined chatroom: " + chatroomId);
     Chatroom.findById(chatroomId).then((response) => {
-      if (response.userA == socket.userId) {
-        response.userAjoin = nowTime;
-        response.userAleave = nowTime;
-      } else {
-        response.userBjoin = nowTime;
-        response.userBleave = nowTime;
+      if (response) {
+        if (response.userA == socket.userId) {
+          response.userAjoin = nowTime;
+          response.userAleave = nowTime;
+        } else {
+          response.userBjoin = nowTime;
+          response.userBleave = nowTime;
+        }
+        response
+          .save()
+          .then((resp) => {})
+          .catch((err) => {});
       }
-      response
-        .save()
-        .then((resp) => {})
-        .catch((err) => {});
     });
   });
 
@@ -72,15 +74,17 @@ io.on("connection", (socket) => {
     socket.leave(chatroomId);
     console.log("A user left chatroom: " + chatroomId);
     Chatroom.findById(chatroomId).then((response) => {
-      if (response.userA == socket.userId) {
-        response.userAleave = nowTime;
-      } else {
-        response.userBleave = nowTime;
+      if (response) {
+        if (response.userA == socket.userId) {
+          response.userAleave = nowTime;
+        } else {
+          response.userBleave = nowTime;
+        }
+        response
+          .save()
+          .then((resp) => {})
+          .catch((err) => {});
       }
-      response
-        .save()
-        .then((resp) => {})
-        .catch((err) => {});
     });
   });
 
@@ -129,17 +133,34 @@ io.on("connection", (socket) => {
       username: user.username,
       timestamp: today,
     });
-    newMessage
-      .save()
-      .then((data) => {
-        Chatroom.findByIdAndUpdate(chatId, {
-          $push: { messages: data._id },
-          lastMessage: data._id,
-        })
-          .then((chatroom) => {})
-          .catch((err) => {});
-      })
-      .catch((err) => {});
+    const data = await newMessage.save();
+    const chatroomFound = await Chatroom.findByIdAndUpdate(chatId, {
+      $push: { messages: data._id },
+      lastMessage: data._id,
+    });
+    const receiver =
+      chatroomFound.userA == socket.userId
+        ? chatroomFound.userB
+        : chatroomFound.userA;
+    io.to(receiver).emit("newMessage", {
+      message: message,
+      userId: socket.userId,
+      name: user.name,
+      username: user.username,
+      time:
+        (today.getHours() < 10 ? "0" + today.getHours() : today.getHours()) +
+        ":" +
+        (today.getMinutes() < 10
+          ? "0" + today.getMinutes()
+          : today.getMinutes()),
+      date: (
+        (today.getDate() < 10 ? "0" + today.getDate() : today.getDate()) +
+        "-" +
+        (today.getMonth() < 10 ? "0" + today.getMonth() : today.getMonth()) +
+        "-" +
+        today.getFullYear()
+      ).toString(),
+    });
   });
   socket.on("typing", async ({ userId, chatroomId }) => {
     const user = await User.findOne({ _id: socket.userId });
