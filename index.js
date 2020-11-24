@@ -134,32 +134,33 @@ io.on("connection", (socket) => {
       timestamp: today,
     });
     const data = await newMessage.save();
+    console.log(data);
     const chatroomFound = await Chatroom.findByIdAndUpdate(chatId, {
       $push: { messages: data._id },
       lastMessage: data._id,
     });
-    const receiver =
-      chatroomFound.userA == socket.userId
-        ? chatroomFound.userB
-        : chatroomFound.userA;
-    io.to(receiver).emit("newMessage", {
-      message: message,
-      userId: socket.userId,
-      name: user.name,
-      username: user.username,
-      time:
-        (today.getHours() < 10 ? "0" + today.getHours() : today.getHours()) +
-        ":" +
-        (today.getMinutes() < 10
-          ? "0" + today.getMinutes()
-          : today.getMinutes()),
-      date: (
-        (today.getDate() < 10 ? "0" + today.getDate() : today.getDate()) +
-        "-" +
-        (today.getMonth() < 10 ? "0" + today.getMonth() : today.getMonth()) +
-        "-" +
-        today.getFullYear()
-      ).toString(),
+    console.log(chatroomFound);
+    const arr = [chatroomFound.userA, chatroomFound.userB];
+    arr.forEach((e) => {
+      io.to(e).emit("reloadDashboard", {
+        message: message,
+        userId: socket.userId,
+        name: user.name,
+        username: user.username,
+        time:
+          (today.getHours() < 10 ? "0" + today.getHours() : today.getHours()) +
+          ":" +
+          (today.getMinutes() < 10
+            ? "0" + today.getMinutes()
+            : today.getMinutes()),
+        date: (
+          (today.getDate() < 10 ? "0" + today.getDate() : today.getDate()) +
+          "-" +
+          (today.getMonth() < 10 ? "0" + today.getMonth() : today.getMonth()) +
+          "-" +
+          today.getFullYear()
+        ).toString(),
+      });
     });
   });
   socket.on("typing", async ({ userId, chatroomId }) => {
